@@ -5,8 +5,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { zenDeskTools, createZendeskClientFromEnv } from "./tools/index.js";
 
 // Re-export the functions for library usage
-export { createZendeskClient, searchTickets, getTicket, getTicketDetails, getLinkedIncidents } from "./tools/index.js";
-export type { ZendeskConfig } from "./tools/index.js";
+export { createZendeskClient, searchTickets, getTicket, getTicketDetails, getTicketDetailsClean, getLinkedIncidents } from "./tools/index.js";
+export type { ZendeskConfig, CleanedComment } from "./tools/index.js";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 import { readFileSync } from "fs";

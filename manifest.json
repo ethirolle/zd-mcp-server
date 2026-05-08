@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "zd-mcp-server",
   "display_name": "Zendesk",
-  "version": "0.5.0",
+  "version": "0.6.1",
   "description": "Read, search, comment on, and update Zendesk Support tickets.",
   "author": {
     "name": "Eric Thirolle",

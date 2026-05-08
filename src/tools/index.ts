@@ -2,6 +2,7 @@ import type * as ZendeskTypes from "node-zendesk";
 import zendesk from "node-zendesk";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { parse } from "node-html-parser";
 
 // Types for exported functions
 export interface ZendeskConfig {
@@ -61,6 +62,96 @@ export async function getTicketDetails(client: any, ticketId: number): Promise<a
     ticket: ticketResult,
     comments: commentsResult
   };
+}
+
+export interface CleanedComment {
+  id: number;
+  author_id: number;
+  created_at: string;
+  public: boolean;
+  type: string;
+  text: string;
+}
+
+const BLOCK_TAGS = new Set([
+  "p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6",
+  "blockquote", "pre", "tr", "article", "section", "ul", "ol", "table",
+]);
+
+const escapeBrackets = (s: string) => s.replace(/([\[\]])/g, "\\$1");
+
+const formatUrl = (href: string) =>
+  /[() <>]/.test(href) ? `<${href}>` : href;
+
+function nodeToMarkdown(node: any): string {
+  // Text node — escape brackets so raw text doesn't accidentally form markdown link syntax
+  if (node.nodeType === 3) {
+    return escapeBrackets(node.text ?? node.rawText ?? "");
+  }
+
+  const tag = (node.tagName ?? "").toLowerCase();
+  const children: any[] = node.childNodes ?? [];
+  const inner = children.map(nodeToMarkdown).join("");
+
+  switch (tag) {
+    case "a": {
+      const href = node.getAttribute("href") ?? "";
+      const text = inner.trim();
+      if (!href) return inner;
+      if (!text || text === href) return `<${href}>`;
+      // inner already escaped where needed — preserves nested ![alt](src) for clickable images
+      return `[${text}](${formatUrl(href)})`;
+    }
+    case "img": {
+      const src = node.getAttribute("src") ?? "";
+      const alt = escapeBrackets(node.getAttribute("alt") ?? "");
+      if (!src) return alt;
+      return `![${alt}](${formatUrl(src)})`;
+    }
+    case "br":
+      return "\n";
+    case "code":
+      return inner ? `\`${inner}\`` : "";
+    default:
+      if (BLOCK_TAGS.has(tag)) return inner + "\n";
+      return inner;
+  }
+}
+
+function htmlToMarkdown(html: string): string {
+  if (!html) return "";
+  const root = parse(html);
+  const md = nodeToMarkdown(root);
+  return md
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export async function getTicketDetailsClean(client: any, ticketId: number): Promise<any> {
+  const ticket = await getTicket(client, ticketId);
+  const commentsResp: any = await new Promise((resolve, reject) => {
+    client.tickets.getComments(ticketId, (error: Error | undefined, _req: any, result: any) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+  });
+  const rawComments: any[] = Array.isArray(commentsResp)
+    ? commentsResp
+    : (commentsResp?.comments ?? []);
+
+  const comments: CleanedComment[] = rawComments.map(c => ({
+    id: c.id,
+    author_id: c.author_id,
+    created_at: c.created_at,
+    public: c.public,
+    type: c.type,
+    text: htmlToMarkdown(c.html_body ?? ""),
+  }));
+
+  return { ticket, comments };
 }
 
 export async function getLinkedIncidents(client: any, ticketId: number): Promise<any> {
@@ -351,6 +442,34 @@ export function zenDeskTools(server: McpServer, client: any) {
     async ({ ticket_id }) => {
       try {
         const result = await getTicketDetails(client, parseInt(ticket_id, 10));
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        return {
+          content: [{
+            type: "text",
+            text: `Error: ${error.message || 'Unknown error occurred'}`
+          }],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "zendesk_get_ticket_details_clean",
+    "Get a Zendesk ticket and its comments with HTML stripped from comment bodies (links and image URLs preserved inline). Returns a token-efficient shape suitable for LLM consumption.",
+    {
+      ticket_id: z.string().describe("The ID of the ticket to retrieve details for"),
+    },
+    async ({ ticket_id }) => {
+      try {
+        const result = await getTicketDetailsClean(client, parseInt(ticket_id, 10));
 
         return {
           content: [{
