@@ -75,19 +75,18 @@ export async function getLinkedIncidents(client: any, ticketId: number): Promise
   });
 }
 
-// Environment-based client for backward compatibility
-
-if (!process.env.ZENDESK_EMAIL || !process.env.ZENDESK_TOKEN || !process.env.ZENDESK_SUBDOMAIN) {
-  throw new Error('Missing required environment variables: ZENDESK_EMAIL, ZENDESK_TOKEN, ZENDESK_SUBDOMAIN');
+export function createZendeskClientFromEnv() {
+  if (!process.env.ZENDESK_EMAIL || !process.env.ZENDESK_TOKEN || !process.env.ZENDESK_SUBDOMAIN) {
+    throw new Error('Missing required environment variables: ZENDESK_EMAIL, ZENDESK_TOKEN, ZENDESK_SUBDOMAIN');
+  }
+  return createZendeskClient({
+    email: process.env.ZENDESK_EMAIL,
+    token: process.env.ZENDESK_TOKEN,
+    subdomain: process.env.ZENDESK_SUBDOMAIN,
+  });
 }
 
-const client = zendesk.createClient({
-  username: process.env.ZENDESK_EMAIL as string,
-  token: process.env.ZENDESK_TOKEN as string,
-  remoteUri: `https://${process.env.ZENDESK_SUBDOMAIN}.zendesk.com/api/v2`,
-});
-
-export function zenDeskTools(server: McpServer) {
+export function zenDeskTools(server: McpServer, client: any) {
   server.tool(
     "zendesk_get_ticket",
     "Get a Zendesk ticket by ID",

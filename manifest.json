@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/schemas/mcpb-manifest-v0.4.schema.json",
+  "manifest_version": "0.4",
+  "name": "zd-mcp-server",
+  "display_name": "Zendesk",
+  "version": "0.5.0",
+  "description": "Read, search, comment on, and update Zendesk Support tickets.",
+  "author": {
+    "name": "Eric Thirolle",
+    "email": "eric.thirolle@grafana.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/koundinya/zd-mcp-server.git"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "ZENDESK_SUBDOMAIN": "${user_config.subdomain}",
+        "ZENDESK_EMAIL": "${user_config.email}",
+        "ZENDESK_TOKEN": "${user_config.token}"
+      }
+    }
+  },
+  "user_config": {
+    "subdomain": {
+      "type": "string",
+      "title": "Zendesk subdomain",
+      "description": "The part before .zendesk.com in your Zendesk URL (e.g., 'acme' for acme.zendesk.com).",
+      "required": true
+    },
+    "email": {
+      "type": "string",
+      "title": "Zendesk email",
+      "description": "Email address of the Zendesk user the API token belongs to.",
+      "required": true
+    },
+    "token": {
+      "type": "string",
+      "title": "Zendesk API token",
+      "description": "API token from Zendesk Admin Center → Apps and integrations → APIs → Zendesk API.",
+      "required": true,
+      "sensitive": true
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["darwin", "win32", "linux"]
+  }
+}

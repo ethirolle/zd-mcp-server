@@ -2,7 +2,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { zenDeskTools, createZendeskClient, searchTickets, getTicket, getTicketDetails, getLinkedIncidents } from "./tools/index.js";
+import { zenDeskTools, createZendeskClientFromEnv } from "./tools/index.js";
 
 // Re-export the functions for library usage
 export { createZendeskClient, searchTickets, getTicket, getTicketDetails, getLinkedIncidents } from "./tools/index.js";
@@ -31,7 +31,8 @@ async function main() {
     }
   );
 
-  zenDeskTools(server);
+  const client = createZendeskClientFromEnv();
+  zenDeskTools(server, client);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
